@@ -1,0 +1,58 @@
+import simpy
+import random
+
+INVENTARIO_INICIAL = 50            # Unidades iniciales en inventario
+NIVEL_MINIMO = 20                 # Pedido Minimo 
+CANTIDAD_REABASTECIMIENTO = 50     # Cantidad de unidades para reabastecimiento
+TIEMPO_ENTREGA = 5                # Días que tarda el reabastecimiento
+TIEMPO_SIMULACION = 30            # Tiempo total de la simulación (dias)
+INTERVALO_LLEGADA_CLIENTES = 1.0   # Intervalo promedio de llegada de clientes (días)
+DEMANDA_CLIENTES = [1, 2, 3, 4, 5] # Cantidad de productos que los clientes pueden comprar
+
+inventario_actual = INVENTARIO_INICIAL
+#Simula llegada de cliente y compra de productos
+
+def cliente(env, nombre):
+    
+    global inventario_actual
+    while True:
+        # Cliente llega a la tienda
+        cantidad_comprada = random.choice(DEMANDA_CLIENTES)
+        print(f"[Día {env.now:.1f}] {nombre} llega y quiere comprar {cantidad_comprada} unidades.")
+
+        if inventario_actual >= cantidad_comprada:
+            inventario_actual -= cantidad_comprada
+            print(f"[Día {env.now:.1f}] {nombre} compra {cantidad_comprada} unidades. Inventario actual: {inventario_actual}")
+        else:
+            print(f"[Día {env.now:.1f}] {nombre} quiere {cantidad_comprada}, pero solo hay {inventario_actual} unidades. Venta perdida.")
+        
+        # Esperar hasta que llegue el próximo cliente
+        yield env.timeout(random.expovariate(1.0 / INTERVALO_LLEGADA_CLIENTES))
+# Evaluacion del inventario 
+def revisar_inventario(env):
+   
+    global inventario_actual
+    while True:
+        if inventario_actual < NIVEL_MINIMO:
+            print(f"[Día {env.now:.1f}] Nivel bajo de inventario ({inventario_actual}). Realizando pedido de {CANTIDAD_REABASTECIMIENTO} unidades.")
+            
+            # Simular tiempo de entrega
+            yield env.timeout(TIEMPO_ENTREGA)
+            
+            # Reabastecimiento
+            inventario_actual += CANTIDAD_REABASTECIMIENTO
+            print(f"[Día {env.now:.1f}] Pedido recibido. Inventario actual: {inventario_actual}")
+        
+        # Revisar el inventario una vez al día
+        yield env.timeout(1)
+# Entorno de simulación
+env = simpy.Environment()
+# Crear
+env.process(revisar_inventario(env))
+for i in range(1, 6):  # Simulamos 5 clientes que llegan aleatoriamente
+    env.process(cliente(env, f"Cliente {i}"))
+
+# Ejecutar 
+print("--- Iniciando Simulación de Gestión de Inventario ---")
+env.run(until=TIEMPO_SIMULACION)
+print("--- Fin de la Simulación ---")
